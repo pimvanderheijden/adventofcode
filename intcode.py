@@ -13,7 +13,6 @@ def map(arr, fn):
     return new_arr
 
 def intcode(input, noun, verb):
-    print('input', input)
     def op1(store, instruction):
         new_store = store
         new_store[instruction[3]] = new_store[instruction[1]] + new_store[instruction[2]]
