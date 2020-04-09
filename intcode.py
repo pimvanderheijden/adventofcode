@@ -1,10 +1,6 @@
 import pprint
 import sys
 
-noun = int(sys.argv[1])
-verb = int(sys.argv[2])
-input = sys.argv[3]
-
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 def map(arr, fn):
@@ -13,26 +9,34 @@ def map(arr, fn):
     return new_arr
 
 def intcode(input, noun, verb):
-    def op1(store, instruction):
+    def get_values(store, instruction, modes):
+        values = {}
+        for mode, i in modes:
+            values[i] = instruction[1] if mode == 1 else store[instruction[1]]
+        return values
+
+    def op1(store, instruction, modes):
         new_store = store
-        new_store[instruction[3]] = new_store[instruction[1]] + new_store[instruction[2]]
+        values = get_values(store, instruction, modes)
+        new_store[values[2]] = new_store[values[1]] + new_store[values[2]]
         return new_store
 
-    def op2(store, instruction):
+    def op2(store, instruction, modes):
         new_store = store
-        new_store[instruction[3]] = new_store[instruction[1]] * new_store[instruction[2]]
+        values  = get_values(store, instruction, modes)
+        new_store[values[2]] = new_store[values[1]] * new_store[values[2]]
         return new_store
 
     def op3(store, instruction, modes):
         new_store = store
-        value = instruction[1]
-        new_store[value] = value if modes[1] == 1 else store[value]
+        values  = get_values(store, instruction, modes)
+        new_store[instruction[1]] = values[0]
         return new_store
 
     def op4(store, instruction, modes):
         new_store = store
-        value = instruction[1]
-        new_store[value if modes[1] == 1 else store[value]] = value
+        values  = get_values(store, instruction, modes)
+        new_store[values[0]] = instruction[1]
         return new_store
 
     operations = { 1: op1, 2: op2, 3: op3, 4: op4 }
@@ -53,14 +57,17 @@ def intcode(input, noun, verb):
         first_len = len(first_str)
         modes = []
 
-        if first_len > 2:
-            modes[1] = int(first_str[first_len - 1 - 2])
-        if first_len > 3:
-            modes[2] = int(first_str[first_len - 1 - 3])
-        if first_len > 4:
-            modes[3] = int(first_str[first_len - 1 - 4])
+        if first_len == 1:
+            opcode = int(first_str[first_len - 1])
+        else:
+            opcode = int(first_str[first_len - 1] + first_str[first_len - 2])
 
-        opcode = int(first_str[first_len - 1] + first_str[first_len - 2])
+        if first_len > 2:
+            modes.append(int(first_str[first_len - 3]))
+        if first_len > 3:
+            modes.append(int(first_str[first_len - 4]))
+        if first_len > 4:
+            modes.append(int(first_str[first_len - 5]))
 
         if opcode == 99: return store
 
@@ -70,8 +77,8 @@ def intcode(input, noun, verb):
         return run(new_store, pointer + offset)
 
     store = map(input.split(','), int)
-    store[1] = noun
-    store[2] = verb
+    if noun: store[1] = noun
+    if verb: store[2] = verb
     output = run(store, 0)
 
     return ','.join(x for x in map(output, str))
@@ -82,7 +89,16 @@ def pprint_output(str):
         if i % 4 == 0:
             pp([mem[i], mem[1 + i], mem[2 + i], mem[3 + i]])
 
-output = intcode(input, noun, verb)
+
+if len(sys.argv) == 4:
+    input = sys.argv[3]
+    noun = int(sys.argv[1])
+    verb = int(sys.argv[2])
+    output = intcode(input, noun, verb)
+else:
+    input = sys.argv[1]
+    output = intcode(input, False, False)
+
 pprint_output(output)
 print('------------------------------------------')
 pp(int(output.split(',')[0]))
