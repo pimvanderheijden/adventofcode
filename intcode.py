@@ -3,84 +3,121 @@ import sys
 
 pp = pprint.PrettyPrinter(indent=4).pprint
 
+
 def map(arr, fn):
     new_arr = []
-    for item in arr: new_arr.append(fn(item))
+    for item in arr:
+        new_arr.append(fn(item))
     return new_arr
 
-def intcode(input, noun, verb):
-    def get_values(store, instruction, modes):
-        values = {}
-        for mode, i in modes:
-            values[i] = instruction[1] if mode == 1 else store[instruction[1]]
-        return values
+def get_value(store, parameter, mode):
+    if mode == '1': # immediate mode
+        return parameter
+    else: # position mode
+        return store[parameter]
 
+def intcode(input_str, noun, verb):
     def op1(store, instruction, modes):
         new_store = store
-        values = get_values(store, instruction, modes)
-        new_store[values[2]] = new_store[values[1]] + new_store[values[2]]
+        value1 = get_value(store, instruction[1], modes[2])
+        value2 = get_value(store, instruction[2], modes[1])
+
+        # Parameters that an instruction writes to will never be in immediate mode.
+        # value3 = get_value(store, instruction[3], modes[0])
+        # ----> only get working situation with immediate mode
+        value3 = instruction[3]
+
+        new_store[value3] = value1 + value2
         return new_store
 
     def op2(store, instruction, modes):
         new_store = store
-        values  = get_values(store, instruction, modes)
-        new_store[values[2]] = new_store[values[1]] * new_store[values[2]]
+        value1 = get_value(store, instruction[1], modes[2])
+        value2 = get_value(store, instruction[2], modes[1])
+
+        # Parameters that an instruction writes to will never be in immediate mode.
+        # value3 = get_value(store, instruction[3], modes[0])
+        # ----> only get working situation with immediate mode
+        value3 = instruction[3]
+
+        new_store[value3] = value1 * value2
         return new_store
 
     def op3(store, instruction, modes):
         new_store = store
-        values  = get_values(store, instruction, modes)
-        new_store[instruction[1]] = values[0]
+
+        # Parameters that an instruction writes to will never be in immediate mode.
+        # ----> only get working situation with immediate mode
+        value1 = get_value(store, instruction[1], '1')
+
+        # print("What is your input value?")
+        # choice = int(input())
+        choice = 1
+
+        new_store[value1] = choice
         return new_store
 
     def op4(store, instruction, modes):
         new_store = store
-        values  = get_values(store, instruction, modes)
-        new_store[values[0]] = instruction[1]
+
+        # Parameters that an instruction writes to will never be in immediate mode.
+        value1 = get_value(store, instruction[1], modes[2])
+
+        print(value1)
+
         return new_store
 
-    operations = { 1: op1, 2: op2, 3: op3, 4: op4 }
-    offsets = { 1: 4, 2: 4, 3: 2, 4: 2 }
-
-    def get_instruction(length, store, pointer):
-        line = []
-        for i in range(length):
-            line.append(store[pointer] + i)
-        return line
+    def get_instruction(offset, store, pointer):
+        instruction = []
+        for i in range(offset):
+            instruction.append(store[pointer + i])
+        return instruction
 
     def run(store, pointer):
-        # should always end with 99?
+        # print('', )
+        # print('pointer', pointer)
+        # print(','.join(x for x in map(store, str))[:60])
+
+        # Does it always end with 99?
+        # If not, do this:
         # if pointer == len(store): return store
 
         first = store[pointer]
-        first_str = str(first)
-        first_len = len(first_str)
-        modes = []
-
-        if first_len == 1:
-            opcode = int(first_str[first_len - 1])
-        else:
-            opcode = int(first_str[first_len - 1] + first_str[first_len - 2])
-
-        if first_len > 2:
-            modes.append(int(first_str[first_len - 3]))
-        if first_len > 3:
-            modes.append(int(first_str[first_len - 4]))
-        if first_len > 4:
-            modes.append(int(first_str[first_len - 5]))
+        first_str = str(first).zfill(5)
+        modes = list(first_str)
+        a = modes.pop()
+        b = modes.pop()
+        opcode = int(b + a)
 
         if opcode == 99: return store
 
         offset = offsets[opcode]
         instruction = get_instruction(offset, store, pointer)
+        # print('opcode', opcode)
+        # print('instruction', instruction)
+        # print('modes', modes)
         new_store = operations[opcode](store, instruction, modes)
         return run(new_store, pointer + offset)
 
-    store = map(input.split(','), int)
+    operations = { 1: op1, 2: op2, 3: op3, 4: op4 }
+    offsets = { 1: 4, 2: 4, 3: 2, 4: 2 }
+    store = []
+
+    for _ in range(10000):
+        store.append('0')
+
+    def fill_store(i, digit):
+        store[i] = digit
+
+    input_str_splitted = input_str.split(',')
+
+    for i, digit in enumerate(input_str_splitted):
+        fill_store(i, digit)
+
     if noun: store[1] = noun
     if verb: store[2] = verb
-    output = run(store, 0)
 
+    output = run(map(store, int), 0)[:len(input_str_splitted) -1]
     return ','.join(x for x in map(output, str))
 
 def pprint_output(str):
@@ -89,19 +126,12 @@ def pprint_output(str):
         if i % 4 == 0:
             pp([mem[i], mem[1 + i], mem[2 + i], mem[3 + i]])
 
+reader = open("input_day_5.txt", "r")
+input1 = reader.read()
+reader.close()
+# print('input1', input1)
+output = intcode(input1, False, False)
 
-if len(sys.argv) == 4:
-    input = sys.argv[3]
-    noun = int(sys.argv[1])
-    verb = int(sys.argv[2])
-    output = intcode(input, noun, verb)
-else:
-    input = sys.argv[1]
-    output = intcode(input, False, False)
-
-pprint_output(output)
-print('------------------------------------------')
-pp(int(output.split(',')[0]))
-
-# value on address 0 should be 4462686
-# noun 59 and verb 36 give 19690720
+# pprint_output(output)
+# print('------------------------------------------')
+# pp(int(output.split(',')[0]))
